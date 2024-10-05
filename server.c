@@ -88,7 +88,7 @@ int print_train_info(request *reqP) {
     }
     return 0;
 }
-#else
+#else //WRITE_SERVER
 int print_train_info(request *reqP) {
     /*
      * Booking info
@@ -147,12 +147,12 @@ int main(int argc, char** argv) {
         // TODO: Add IO multiplexing
 
         // Check new connection
-        conn_fd = accept_conn();
-        if (conn_fd < 0)
+        conn_fd = accept_conn(); //server 等connection
+        if (conn_fd < 0) // 如果沒有connection，就離開到while loop
             continue;
 
-        int ret = handle_read(&requestP[conn_fd]);
-	    if (ret < 0) {
+        int ret = handle_read(&requestP[conn_fd]); //handle_read：讀client input,讀到它的internal buffer
+	    if (ret < 0) { //user還沒寫就斷線，就沒寫到
             fprintf(stderr, "bad request from %s\n", requestP[conn_fd].host);
             continue;
         }
