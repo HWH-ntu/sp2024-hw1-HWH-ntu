@@ -154,32 +154,45 @@ int main(int argc, char** argv) {
         // Send the welcome banner to the client upon connection
         write(requestP[conn_fd].conn_fd, welcome_banner, strlen(welcome_banner));
 
+#ifdef READ_SERVER
         // Now send the shift selection message if it's a READ_SERVER
-        #ifdef READ_SERVER
         write(requestP[conn_fd].conn_fd, read_shift_msg, strlen(read_shift_msg));
-        #endif
 
         int ret = handle_read(&requestP[conn_fd]); 
         //handle_read：讀client input,讀到它的internal buffer
-	    if (ret < 0) { //user還沒寫就斷線，就沒寫到
+	    if (ret < 0) { // -1: read failed user還沒寫就斷線，就沒寫到
             fprintf(stderr, "bad request from %s\n", requestP[conn_fd].host);
+            continue;
+        } else if (ret == 0) { // 0: read EOF (client down)
             continue;
         }
 
         // TODO: handle requests from clients
-#ifdef READ_SERVER      
         sprintf(buf,"%s : %s",accept_read_header,requestP[conn_fd].buf); 
         //printf是printf到STDOUT，sprintf是print到string，到string裡的是concat完的兩條string
         write(requestP[conn_fd].conn_fd, buf, strlen(buf));
         //把concat好的string寫到connection fd
+
+        
 #elif defined WRITE_SERVER
+        int ret = handle_read(&requestP[conn_fd]); 
+        //handle_read：讀client input,讀到它的internal buffer
+	    if (ret < 0) { // -1: read failed user還沒寫就斷線，就沒寫到
+            fprintf(stderr, "bad request from %s\n", requestP[conn_fd].host);
+            continue;
+        } else if (ret == 0) { // 0: read EOF (client down)
+            continue;
+        }
+
+        // TODO: handle requests from clients
         sprintf(buf,"%s : %s",accept_write_header,requestP[conn_fd].buf);
-        write(requestP[conn_fd].conn_fd, buf, strlen(buf));    
+        write(requestP[conn_fd].conn_fd, buf, strlen(buf)); 
+ 
 #endif
         
 
-        close(requestP[conn_fd].conn_fd);
-        free_request(&requestP[conn_fd]);
+        close(requestP[conn_fd].conn_fd); //關起這個client的connection
+        free_request(&requestP[conn_fd]); //將剛剛的輸入清空
     }      
 
     free(requestP);
