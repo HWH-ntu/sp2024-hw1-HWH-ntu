@@ -151,7 +151,11 @@ int main(int argc, char** argv) {
         if (conn_fd < 0) // 如果沒有connection，就離開到while loop
             continue;
 
-        int ret = handle_read(&requestP[conn_fd]); //handle_read：讀client input,讀到它的internal buffer
+        // Send the welcome banner to the client upon connection
+        write(requestP[conn_fd].conn_fd, welcome_banner, strlen(welcome_banner));
+
+        int ret = handle_read(&requestP[conn_fd]); 
+        //handle_read：讀client input,讀到它的internal buffer
 	    if (ret < 0) { //user還沒寫就斷線，就沒寫到
             fprintf(stderr, "bad request from %s\n", requestP[conn_fd].host);
             continue;
@@ -159,8 +163,10 @@ int main(int argc, char** argv) {
 
         // TODO: handle requests from clients
 #ifdef READ_SERVER      
-        sprintf(buf,"%s : %s",accept_read_header,requestP[conn_fd].buf);
+        sprintf(buf,"%s : %s",accept_read_header,requestP[conn_fd].buf); 
+        //printf是printf到STDOUT，sprintf是print到string，到string裡的是concat完的兩條string
         write(requestP[conn_fd].conn_fd, buf, strlen(buf));
+        //把concat好的string寫到connection fd
 #elif defined WRITE_SERVER
         sprintf(buf,"%s : %s",accept_write_header,requestP[conn_fd].buf);
         write(requestP[conn_fd].conn_fd, buf, strlen(buf));    
