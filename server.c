@@ -154,6 +154,11 @@ int main(int argc, char** argv) {
         // Send the welcome banner to the client upon connection
         write(requestP[conn_fd].conn_fd, welcome_banner, strlen(welcome_banner));
 
+        // Now send the shift selection message if it's a READ_SERVER
+        #ifdef READ_SERVER
+        write(requestP[conn_fd].conn_fd, read_shift_msg, strlen(read_shift_msg));
+        #endif
+
         int ret = handle_read(&requestP[conn_fd]); 
         //handle_read：讀client input,讀到它的internal buffer
 	    if (ret < 0) { //user還沒寫就斷線，就沒寫到
