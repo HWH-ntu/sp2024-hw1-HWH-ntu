@@ -80,8 +80,7 @@ int handle_read(request* reqP) {
 int print_train_info(int train_fd, char* seat_availability_msg, size_t msg_len) { //從struct印出來
     // print_train_info 做的事是讀檔，並且將檔案的內容格式化地讀進buffer(seat_availability_msg)中
     // Function to print seat availability from the file associated with train_fd
-    char seat_buffer[SEAT_NUM * 2]; // Buffer for seat data (40 seats + newlines)
-    memset(seat_buffer, 0, sizeof(seat_buffer));
+    char seat_buffer[SEAT_NUM * 2]= {0}; // Initialize with zero 相當於 memset(seat_buffer, 0, sizeof(seat_buffer));
 
     // Seek to the beginning of the file before reading
     lseek(train_fd, 0, SEEK_SET);
@@ -93,28 +92,35 @@ int print_train_info(int train_fd, char* seat_availability_msg, size_t msg_len) 
         return -1;
     }
 
-    // Debugging: Print the raw content of the seat_buffer
-    printf("Raw seat data read from the file: \n");
-    for (int i = 0; i < bytes_read; i++) {
-        printf("%c", seat_buffer[i]);  // Print each character as-is
-    }
-    printf("\n");  // Newline after printing the entire buffer
+    // 用來比對資料print out的正確性 Debugging: Print the raw content of the seat_buffer 
+    // printf("Raw seat data read from the file: \n");
+    // for (int i = 0; i < bytes_read; i++) {
+    //     printf("%c", seat_buffer[i]);  // Print each character as-is
+    // }
+    // printf("\n");  // Newline after printing the entire buffer
 
-    // Now, format the seat availability message (as before)
-    // memset(seat_availability_msg, 0, msg_len);  // Clear the buffer
+    // Ensure null-termination of the seat_buffer string
+    seat_buffer[bytes_read < sizeof(seat_buffer) ? bytes_read : sizeof(seat_buffer) - 1] = '\0';
+    // 上面那行相當於下面這幾行
+    // if (bytes_read < sizeof(seat_buffer)) {
+    //     seat_buffer[bytes_read] = '\0';  // Ensure the string is null-terminated
+    // } else {
+    //     seat_buffer[sizeof(seat_buffer) - 1] = '\0';  // Safeguard in case of boundary issues
+    // }
 
-    // Manually add a null-terminator to seat_buffer
-    if (bytes_read < sizeof(seat_buffer)) {
-        seat_buffer[bytes_read] = '\0';  // Ensure the string is null-terminated
-    } else {
-        seat_buffer[sizeof(seat_buffer) - 1] = '\0';  // Safeguard in case of boundary issues
-    }
     // Directly copy the raw content from seat_buffer to seat_availability_msg
     snprintf(seat_availability_msg, msg_len, "%s\n", seat_buffer); 
-    // 這邊msg_len-1因為發現最後有多一個問號，不確定是原本的string讀到什麼，所以只讓他讀到-1的位置
-    // 後來還是有出現錯誤的字尾，將ms_len-2出現一樣的問題，然後我發現可能不是-1-2，所以將它改回msg_len
-
-    return 0;  // Success
+    /*這邊msg_len-1因為發現最後有多一個問號，不確定是原本的string讀到什麼，所以只讓他讀到-1的位置；
+    後來還是有出現錯誤的字尾，將ms_len-2出現一樣的問題，然後我發現可能不是-1-2，所以將它改回msg_len
+    後來發現是這個！！
+    The issue with the appearance of the unexpected characters like "'", "N", or "?" before the prompt is likely caused by lack of null-termination in your string. When you read the file data into seat_buffer, it’s important to make sure that the buffer is properly null-terminated. If it is not, snprintf() will attempt to print characters beyond the valid string content, leading to undefined behavior and potentially printing garbage characters.
+    The Root Cause:
+    When you use read(), it reads raw data from the file, but it does not automatically add a null-terminator at the end of the string.
+    In C, strings are expected to be null-terminated (\0 at the end) so that functions like printf() or snprintf() know where the string ends. If there is no null-terminator, these functions will continue reading beyond the end of the buffer, leading to unexpected characters.
+    Solution:
+    After you read the data from the file, manually add a null-terminator at the end of the string in seat_buffer before passing it to snprintf().
+    */
+    return 0;  
 }
 #else //WRITE_SERVER
 int print_train_info(request *reqP) {
