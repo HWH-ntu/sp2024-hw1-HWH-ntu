@@ -104,14 +104,8 @@ int print_train_info(int train_fd, char* seat_availability_msg, size_t msg_len) 
     memset(seat_availability_msg, 0, msg_len);  // Clear the buffer
     snprintf(seat_availability_msg, msg_len, "Seat availability status:\n");
 
-    for (int i = 0; i < SEAT_NUM; i += 4) {  // Print 4 seats per line
-        char line[20];
-        snprintf(line, sizeof(line), "%c %c %c %c\n", 
-                 seat_buffer[i], seat_buffer[i + 1], 
-                 seat_buffer[i + 2], seat_buffer[i + 3]);
-        snprintf(seat_availability_msg + strlen(seat_availability_msg), 
-                 msg_len - strlen(seat_availability_msg), "%s", line);
-    }
+    // Directly copy the raw content from seat_buffer to seat_availability_msg
+    snprintf(seat_availability_msg, msg_len, "Raw seat data:\n%s", seat_buffer);
 
     //ChatGPT
     // for (int i = 0; i < SEAT_NUM; i += 4) {  // Print 4 seats per line
