@@ -78,6 +78,7 @@ int handle_read(request* reqP) {
 
 #ifdef READ_SERVER
 int print_train_info(int train_fd, char* seat_availability_msg, size_t msg_len) { //從struct印出來
+    // print_train_info 做的事是讀檔，並且將檔案的內容格式化地讀進buffer(seat_availability_msg)中
     // Function to print seat availability from the file associated with train_fd
     char seat_buffer[SEAT_NUM * 2]; // Buffer for seat data (40 seats + newlines)
     memset(seat_buffer, 0, sizeof(seat_buffer));
@@ -92,19 +93,24 @@ int print_train_info(int train_fd, char* seat_availability_msg, size_t msg_len) 
         return -1;
     }
 
-    // Format seat data into the seat_availability_msg buffer
-    memset(seat_availability_msg, 0, msg_len); // Clear the buffer
-    // snprintf(seat_availability_msg, msg_len, "Seat availability status:\n");
+    // Debugging: Print the raw content of the seat_buffer
+    printf("Raw seat data read from the file: \n");
+    for (int i = 0; i < bytes_read; i++) {
+        printf("%c", seat_buffer[i]);  // Print each character as-is
+    }
+    printf("\n");  // Newline after printing the entire buffer
 
-    // Modified Formatted Printin'
-    for (int i = 0; i < SEAT_NUM; i += 4) { // Output 4 seats per line
+    // Now, format the seat availability message (as before)
+    memset(seat_availability_msg, 0, msg_len);  // Clear the buffer
+    snprintf(seat_availability_msg, msg_len, "Seat availability status:\n");
+
+    for (int i = 0; i < SEAT_NUM; i += 4) {  // Print 4 seats per line
         char line[20];
-
-        snprintf(line, sizeof(line), "%d %d %d %d\n",
-        seat_buffer[i], seat_buffer[i + 1],
-        seat_buffer[i + 2], seat_buffer[i + 3]);
-
-        strcat(seat_availability_msg, line);  // Concatenate seat availability into message
+        snprintf(line, sizeof(line), "%c %c %c %c\n", 
+                 seat_buffer[i], seat_buffer[i + 1], 
+                 seat_buffer[i + 2], seat_buffer[i + 3]);
+        snprintf(seat_availability_msg + strlen(seat_availability_msg), 
+                 msg_len - strlen(seat_availability_msg), "%s", line);
     }
 
     //ChatGPT
