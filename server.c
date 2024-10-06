@@ -70,14 +70,14 @@ int handle_read(request* reqP) {
     }
 
     len = p1 - buf + 1;
-    memmove(reqP->buf, buf, len);
+    memmove(reqP->buf, buf, len); //為何不能直接寫進req.buf?因為好的code style應該要有buf過度，可以避免將錯誤的資訊直接寫進req.buf之中。確定好了這個buf的資料是對的之後，才用memmove去copy data
     reqP->buf[len - 1] = '\0';
     reqP->buf_len = len-1;
     return 1;
 }
 
 #ifdef READ_SERVER
-int print_train_info(request *reqP) {
+int print_train_info(request *reqP) { //從struct印出來
     
     int i;
     char buf[MAX_MSG_LEN];
@@ -126,7 +126,7 @@ int main(int argc, char** argv) {
     for (i = TRAIN_ID_START, j = 0; i <= TRAIN_ID_END; i++, j++) {
         getfilepath(filename, i);
 #ifdef READ_SERVER
-        trains[j].file_fd = open(filename, O_RDONLY);
+        trains[j].file_fd = open(filename, O_RDONLY); //j是0的時候，filename是902001;j是1的時候，filename是902002
 #elif defined WRITE_SERVER
         trains[j].file_fd = open(filename, O_RDWR);
 #else
@@ -155,10 +155,11 @@ int main(int argc, char** argv) {
         write(requestP[conn_fd].conn_fd, welcome_banner, strlen(welcome_banner));
 
 #ifdef READ_SERVER
+    while (1) {
         // Now send the shift selection message if it's a READ_SERVER
         write(requestP[conn_fd].conn_fd, read_shift_msg, strlen(read_shift_msg));
 
-        int ret = handle_read(&requestP[conn_fd]); 
+        int ret = handle_read(&requestP[conn_fd]); //將User input 吃進&requestP[conn_fd]中
         //handle_read：讀client input,讀到它的internal buffer
 	    if (ret < 0) { // -1: read failed user還沒寫就斷線，就沒寫到
             fprintf(stderr, "bad request from %s\n", requestP[conn_fd].host);
@@ -167,13 +168,40 @@ int main(int argc, char** argv) {
             continue;
         }
 
-        // TODO: handle requests from clients
-        sprintf(buf,"%s : %s",accept_read_header,requestP[conn_fd].buf); 
-        //printf是printf到STDOUT，sprintf是print到string，到string裡的是concat完的兩條string
-        write(requestP[conn_fd].conn_fd, buf, strlen(buf));
-        //把concat好的string寫到connection fd
+        // Client input is in requestP[conn_fd].buf, convert it to an integer
+        int read_server_train_number = atoi(requestP[conn_fd].buf);
 
-        
+        // Error handling: Check if the input is within the valid range
+        if (read_server_train_number >= TRAIN_ID_START && read_server_train_number <= TRAIN_ID_END) {
+            // Get the index for the train number (e.g., 902001 -> 0, 902005 -> 4)
+            int train_index = read_server_train_number - TRAIN_ID_START;
+
+            // Buffer for seat availability message
+            char seat_availability_msg[MAX_MSG_LEN];
+
+            // Print the seat info from the file using the train's file descriptor
+            if (print_train_info(trains[train_index].file_fd, seat_availability_msg, sizeof(seat_availability_msg)) == 0) {
+                // Send the seat availability to the client
+                write(requestP[conn_fd].conn_fd, seat_availability_msg, strlen(seat_availability_msg));
+            } else {
+                // If there was an error reading the seat data, notify the client
+                write(requestP[conn_fd].conn_fd, "Error retrieving seat data.\n", 30);
+            }
+
+        } else {
+            // If the input is out of range, prompt the user again without terminating the loop
+            write(requestP[conn_fd].conn_fd, "Invalid train number. Please try again.\n", 40);
+            continue;
+        }
+
+        //以下是原本的code，因為不符合題目需求所以改掉
+        // TODO: handle requests from clients
+        //sprintf(buf,"%s : %s",accept_read_header,requestP[conn_fd].buf);
+        //printf是printf到STDOUT，sprintf是print到string，到string裡的是concat完的兩條string
+        //write(requestP[conn_fd].conn_fd, buf, strlen(buf));
+        //把concat好的string寫到connection fd
+    }
+
 #elif defined WRITE_SERVER
         int ret = handle_read(&requestP[conn_fd]); 
         //handle_read：讀client input,讀到它的internal buffer
