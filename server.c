@@ -103,27 +103,10 @@ int print_train_info(int train_fd, char* seat_availability_msg, size_t msg_len) 
     // Now, format the seat availability message (as before)
     memset(seat_availability_msg, 0, msg_len);  // Clear the buffer
     // Directly copy the raw content from seat_buffer to seat_availability_msg
-    snprintf(seat_availability_msg, msg_len-1, "%s", seat_buffer);
-
-    //ChatGPT
-    // for (int i = 0; i < SEAT_NUM; i += 4) {  // Print 4 seats per line
-    //     char line[20];
-    //     snprintf(line, sizeof(line), "%c %c %c %c\n", seat_buffer[i], seat_buffer[i + 1], seat_buffer[i + 2], seat_buffer[i + 3]);
-    //     // Append formatted line to the seat availability message
-    //     snprintf(seat_availability_msg + strlen(seat_availability_msg), msg_len - strlen(seat_availability_msg), "%s", line);
-    // }
+    snprintf(seat_availability_msg, msg_len-1, "%s", seat_buffer); 
+    // 這邊msg_len-1因為發現最後有多一個問號，不確定是原本的string讀到什麼，所以只讓他讀到-1的位置
 
     return 0;  // Success
-
-    //TA Original Code:
-    // int i;
-    // char buf[MAX_MSG_LEN];
-
-    // memset(buf, 0, sizeof(buf));
-    // for (i = 0; i < SEAT_NUM / 4; i++) {
-    //     sprintf(buf + (i * 4 * 2), "%d %d %d %d\n", 0, 0, 0, 0);
-    // }
-    // return 0;
 }
 #else //WRITE_SERVER
 int print_train_info(request *reqP) {
