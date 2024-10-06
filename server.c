@@ -80,7 +80,8 @@ int handle_read(request* reqP) {
 int print_train_info(int train_fd, char* seat_availability_msg, size_t msg_len) { //從struct印出來
     // print_train_info 做的事是讀檔，並且將檔案的內容格式化地讀進buffer(seat_availability_msg)中
     // Function to print seat availability from the file associated with train_fd
-    char seat_buffer[SEAT_NUM * 2]= {0}; // Initialize with zero 相當於 memset(seat_buffer, 0, sizeof(seat_buffer));
+    char seat_buffer[MAX_MSG_LEN]= {0}; // Initialize with zero 相當於 memset(seat_buffer, 0, sizeof(seat_buffer));
+    //Buffer Overflow：原本的大小給SEAT_NUM * 2，但這樣太小，導致不夠的部分寫進其他記憶體
 
     // Seek to the beginning of the file before reading
     lseek(train_fd, 0, SEEK_SET);
@@ -100,7 +101,7 @@ int print_train_info(int train_fd, char* seat_availability_msg, size_t msg_len) 
     // printf("\n");  // Newline after printing the entire buffer
 
     // Ensure null-termination of the seat_buffer string
-    seat_buffer[bytes_read < sizeof(seat_buffer) ? bytes_read : sizeof(seat_buffer) - 1] = '\0';
+    //seat_buffer[bytes_read < sizeof(seat_buffer) ? bytes_read : sizeof(seat_buffer) - 1] = '\0';//因為buffer給的太剛好，所以沒有include到\0
     // 上面那行相當於下面這幾行
     // if (bytes_read < sizeof(seat_buffer)) {
     //     seat_buffer[bytes_read] = '\0';  // Ensure the string is null-terminated
