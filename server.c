@@ -103,7 +103,7 @@ int print_train_info(int train_fd, char* seat_availability_msg, size_t msg_len) 
     // Now, format the seat availability message (as before)
     memset(seat_availability_msg, 0, msg_len);  // Clear the buffer
     // Directly copy the raw content from seat_buffer to seat_availability_msg
-    snprintf(seat_availability_msg, msg_len-2, "%s", seat_buffer); 
+    snprintf(seat_availability_msg, msg_len, "%s", seat_buffer); 
     // 這邊msg_len-1因為發現最後有多一個問號，不確定是原本的string讀到什麼，所以只讓他讀到-1的位置
 
     return 0;  // Success
