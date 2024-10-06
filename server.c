@@ -77,16 +77,42 @@ int handle_read(request* reqP) {
 }
 
 #ifdef READ_SERVER
-int print_train_info(request *reqP) { //從struct印出來
-    
-    int i;
-    char buf[MAX_MSG_LEN];
+int print_train_info(int train_fd, char* seat_availability_msg, size_t msg_len) { //從struct印出來
+    // Function to print seat availability from the file associated with train_fd
+    char seat_buffer[SEAT_NUM * 2];  // Buffer for seat data (40 seats + newlines)
+    memset(seat_buffer, 0, sizeof(seat_buffer));
 
-    memset(buf, 0, sizeof(buf));
-    for (i = 0; i < SEAT_NUM / 4; i++) {
-        sprintf(buf + (i * 4 * 2), "%d %d %d %d\n", 0, 0, 0, 0);
+    // Seek to the beginning of the file before reading
+    lseek(train_fd, 0, SEEK_SET);
+
+    // Read the seat data from the file
+    int bytes_read = read(train_fd, seat_buffer, sizeof(seat_buffer));
+    if (bytes_read <= 0) {
+        snprintf(seat_availability_msg, msg_len, "Error reading seat data.\n");
+        return -1;
     }
-    return 0;
+
+    // Format seat data into the seat_availability_msg buffer
+    memset(seat_availability_msg, 0, msg_len);  // Clear the buffer
+    //snprintf(seat_availability_msg, msg_len, "Seat availability status:\n");
+
+    for (int i = 0; i < SEAT_NUM; i += 4) {  // Print 4 seats per line
+        char line[20];
+        snprintf(line, sizeof(line), "%c %c %c %c\n", seat_buffer[i], seat_buffer[i + 1], seat_buffer[i + 2], seat_buffer[i + 3]);
+        // Append formatted line to the seat availability message
+        snprintf(seat_availability_msg + strlen(seat_availability_msg), msg_len - strlen(seat_availability_msg), "%s", line);
+    }
+
+    return 0;  // Success
+
+    // int i;
+    // char buf[MAX_MSG_LEN];
+
+    // memset(buf, 0, sizeof(buf));
+    // for (i = 0; i < SEAT_NUM / 4; i++) {
+    //     sprintf(buf + (i * 4 * 2), "%d %d %d %d\n", 0, 0, 0, 0);
+    // }
+    // return 0;
 }
 #else //WRITE_SERVER
 int print_train_info(request *reqP) {
