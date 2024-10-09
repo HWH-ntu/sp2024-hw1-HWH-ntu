@@ -79,9 +79,7 @@ int handle_read(request* reqP) {
 #ifdef READ_SERVER
 int print_train_info(int train_fd, char* seat_availability_msg, size_t msg_len) { //從struct印出來
     // print_train_info 做的事是讀檔，並且將檔案的內容格式化地讀進buffer(seat_availability_msg)中
-    // Function to print seat availability from the file associated with train_fd
     char seat_buffer[MAX_MSG_LEN]= {0}; // Initialize with zero 相當於 memset(seat_buffer, 0, sizeof(seat_buffer));
-    //Buffer Overflow：原本的大小給SEAT_NUM * 2，但這樣太小，導致不夠的部分寫進其他記憶體
 
     // Seek to the beginning of the file before reading
     lseek(train_fd, 0, SEEK_SET);
@@ -93,34 +91,8 @@ int print_train_info(int train_fd, char* seat_availability_msg, size_t msg_len) 
         return -1;
     }
 
-    // 用來比對資料print out的正確性 Debugging: Print the raw content of the seat_buffer 
-    // printf("Raw seat data read from the file: \n");
-    // for (int i = 0; i < bytes_read; i++) {
-    //     printf("%c", seat_buffer[i]);  // Print each character as-is
-    // }
-    // printf("\n");  // Newline after printing the entire buffer
-
-    // Ensure null-termination of the seat_buffer string
-    //seat_buffer[bytes_read < sizeof(seat_buffer) ? bytes_read : sizeof(seat_buffer) - 1] = '\0';//因為buffer給的太剛好，所以沒有include到\0
-    // 上面那行相當於下面這幾行
-    // if (bytes_read < sizeof(seat_buffer)) {
-    //     seat_buffer[bytes_read] = '\0';  // Ensure the string is null-terminated
-    // } else {
-    //     seat_buffer[sizeof(seat_buffer) - 1] = '\0';  // Safeguard in case of boundary issues
-    // }
-
-    // Directly copy the raw content from seat_buffer to seat_availability_msg
     snprintf(seat_availability_msg, msg_len, "%s", seat_buffer); 
-    /*這邊msg_len-1因為發現最後有多一個問號，不確定是原本的string讀到什麼，所以只讓他讀到-1的位置；
-    後來還是有出現錯誤的字尾，將ms_len-2出現一樣的問題，然後我發現可能不是-1-2，所以將它改回msg_len
-    後來發現是這個！！
-    The issue with the appearance of the unexpected characters like "'", "N", or "?" before the prompt is likely caused by lack of null-termination in your string. When you read the file data into seat_buffer, it’s important to make sure that the buffer is properly null-terminated. If it is not, snprintf() will attempt to print characters beyond the valid string content, leading to undefined behavior and potentially printing garbage characters.
-    The Root Cause:
-    When you use read(), it reads raw data from the file, but it does not automatically add a null-terminator at the end of the string.
-    In C, strings are expected to be null-terminated (\0 at the end) so that functions like printf() or snprintf() know where the string ends. If there is no null-terminator, these functions will continue reading beyond the end of the buffer, leading to unexpected characters.
-    Solution:
-    After you read the data from the file, manually add a null-terminator at the end of the string in seat_buffer before passing it to snprintf().
-    */
+
     return 0;  
 }
 #else //WRITE_SERVER
@@ -221,21 +193,16 @@ int main(int argc, char** argv) {
                 write(requestP[conn_fd].conn_fd, seat_availability_msg, strlen(seat_availability_msg));
             } else {
                 // If there was an error reading the seat data, notify the client
+                //const char* lock_msg = ">>> Locked.\n";
                 write(requestP[conn_fd].conn_fd, "Error retrieving seat data.\n", 30);
             }
 
         } else {
             // If the input is out of range, prompt the user again without terminating the loop
+            // const char* invalid_op_msg = ">>> Invalid operation.\n";
             write(requestP[conn_fd].conn_fd, "Invalid train number. Please try again.\n", 40);
             continue;
         }
-
-        //以下是原本的code，因為不符合題目需求所以改掉
-        // TODO: handle requests from clients
-        //sprintf(buf,"%s : %s",accept_read_header,requestP[conn_fd].buf);
-        //printf是printf到STDOUT，sprintf是print到string，到string裡的是concat完的兩條string
-        //write(requestP[conn_fd].conn_fd, buf, strlen(buf));
-        //把concat好的string寫到connection fd
     }
 
 #elif defined WRITE_SERVER
