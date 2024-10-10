@@ -145,6 +145,43 @@ int if_seat_available (int train_number, int seat_number, enum SEAT* seat_availa
         return 0;
     }
 }
+
+int cur_seat_stat(request* reqP, char* seat_str) {//fail:-1; success, return how many seats had been reserved
+    // Check if input pointers are valid
+    if (reqP == NULL || seat_str == NULL) {
+        return -1;  // Fail if input is invalid
+    }
+
+    int seat_reserved_num = 0;
+
+    // Initialize seat_str as an empty string
+    seat_str[0] = '\0';
+
+    char temp[8];  // Temporary buffer to hold each seat number
+
+    // Traverse the cur_chosen_seat array to concatenate the chosen seats
+    for (int i = 1; i <= SEAT_NUM; i++) {
+        if (reqP->booking_info.cur_chosen_seat[i] == 1) {
+            // If seat_str is not empty, add a comma before concatenating the next seat number
+            if (strlen(seat_str) > 0) {
+                strcat(seat_str, ", ");
+            }
+            // Add the seat number to seat_str
+            snprintf(temp, sizeof(temp), "%d", i);  // Convert the seat number to a string
+            strcat(seat_str, temp);  // Concatenate the seat number to seat_str
+
+            seat_reserved_num++;
+        }
+    }
+
+    // If seat_str is still empty, no seats were chosen, return failure
+    if (strlen(seat_str) == 0) {
+        return 0;  // No chosen seats, return fail
+    }
+
+    return seat_reserved_num;  // Success, seat_str contains the concatenated seat numbers
+}
+
 #endif
 
 int main(int argc, char** argv) {
@@ -239,6 +276,8 @@ int main(int argc, char** argv) {
     }
 
 #elif defined WRITE_SERVER
+        memset(requestP->booking_info.cur_chosen_seat, 0, sizeof(requestP->booking_info.cur_chosen_seat));
+        char seat_str[MAX_MSG_LEN] = {0};  // Initialize an empty string to store seat numbers
         write(requestP[conn_fd].conn_fd, write_shift_msg, strlen(write_shift_msg));
 
         int ret = handle_read(&requestP[conn_fd]); 
@@ -264,15 +303,16 @@ int main(int argc, char** argv) {
             } else {// the train is not full
                 // Send the formatted booking info to the client
                 char info_buf[MAX_MSG_LEN];  // Buffer to hold the formatted string
-                snprintf(info_buf, sizeof(info_buf),"\nBooking info\n|- Shift ID: %d\n|- Chose seat(s):\n|- Paid:\n", requestP[conn_fd].booking_info.shift_id);
+                snprintf(info_buf, sizeof(info_buf),"\nBooking info\n|- Shift ID: %d\n|- Chose seat(s):\n|- Paid:\n\n", requestP[conn_fd].booking_info.shift_id);
                 write(requestP[conn_fd].conn_fd, info_buf, strlen(info_buf));
 
                 while(1){
                     write(requestP[conn_fd].conn_fd, write_seat_msg, strlen(write_seat_msg));
                     //write_seat_msg = "Select the seat [1-40] or type \"pay\" to confirm: ";
 
+                    //如果user寫進的數字，已經有在cur_chosen_seat_no裡面的話，就要cancel，不然的話就做原本的
                     int seat_ret = handle_read(&requestP[conn_fd]); 
-                    printf("seat_ret = %d\n", seat_ret);
+                    //printf("seat_ret = %d\n", seat_ret);
                     if (seat_ret < 0) { 
                         fprintf(stderr, "bad request from %s\n", requestP[conn_fd].host);
                         continue;
@@ -282,31 +322,59 @@ int main(int argc, char** argv) {
 
                     // Convert the seat input to an integer (seat number)
                     int selected_seat = atoi(requestP[conn_fd].buf);
-                    printf("selected seat = %d\n", selected_seat);
-                    // Function to input train number and seat, then connect with enum SEAT 
-                    enum SEAT seat_availability = INITIAL;
-                    int seat_part = if_seat_available (requestP[conn_fd].booking_info.shift_id, selected_seat, &seat_availability);
 
-                    // Check if the seat number is valid (1-40)
-                    if (selected_seat >= 1 && selected_seat <= SEAT_NUM && seat_part ==1) {
-                        // Check the seat status
-                        if (seat_availability == EMPTY) {
-                            //*********要加write loc ********/
-                            //reserving the seat now
-                            char info_buf[MAX_MSG_LEN];  // Buffer to hold the formatted string
-                            snprintf(info_buf, sizeof(info_buf),"\nBooking info\n|- Shift ID: %d\n|- Chose seat(s):%d\n|- Paid:\n", requestP[conn_fd].booking_info.shift_id, selected_seat);
-                            write(requestP[conn_fd].conn_fd, info_buf, strlen(info_buf));
+                    if(strlen(requestP[conn_fd].buf)<3 && requestP->booking_info.cur_chosen_seat[selected_seat] == 0) {//這個位子還沒被選過
+                        //printf("selected seat = %d\n", selected_seat);
+                        // Function to input train number and seat, then connect with enum SEAT 
+                        enum SEAT seat_availability = INITIAL;
+                        int seat_part = if_seat_available (requestP[conn_fd].booking_info.shift_id, selected_seat, &seat_availability);
 
-                        } else if (seat_availability == PAID) {
-                            // Seat is already booked
-                            write(requestP[conn_fd].conn_fd, seat_booked_msg, strlen(seat_booked_msg));
-                        } else if (seat_availability == CHOSEN) {
-                            // Seat is reserved by someone else
-                            write(requestP[conn_fd].conn_fd, lock_msg, strlen(lock_msg));
+                        // Check if the seat number is valid (1-40)
+                        if (selected_seat >= 1 && selected_seat <= SEAT_NUM && seat_part ==1) { //seat part fail 未處理
+                            // Check the seat status
+                            if (seat_availability == EMPTY) {
+                                //*********要加write loc ********/
+                                //reserving the seat now
+                                //如果有順利拿到write loc
+                                requestP->booking_info.cur_chosen_seat[selected_seat] = 1;//1-based
+
+                                cur_seat_stat(requestP, seat_str);
+                                char info_buf[MAX_MSG_LEN];  // Buffer to hold the formatted string
+                                snprintf(info_buf, sizeof(info_buf),"\nBooking info\n|- Shift ID: %d\n|- Chose seat(s):%s\n|- Paid:\n\n", requestP[conn_fd].booking_info.shift_id, seat_str);
+                                write(requestP[conn_fd].conn_fd, info_buf, strlen(info_buf));
+
+                            } else if (seat_availability == PAID) {
+                                // Seat is already booked
+                                write(requestP[conn_fd].conn_fd, seat_booked_msg, strlen(seat_booked_msg));
+
+                                char info_buf[MAX_MSG_LEN];  // Buffer to hold the formatted string
+                                snprintf(info_buf, sizeof(info_buf),"\nBooking info\n|- Shift ID: %d\n|- Chose seat(s):%s\n|- Paid:\n\n", requestP[conn_fd].booking_info.shift_id, seat_str);
+                                write(requestP[conn_fd].conn_fd, info_buf, strlen(info_buf));
+                            } else if (seat_availability == CHOSEN) {
+                                // Seat is reserved by someone else
+                                write(requestP[conn_fd].conn_fd, lock_msg, strlen(lock_msg));
+
+                                char info_buf[MAX_MSG_LEN];  // Buffer to hold the formatted string
+                                snprintf(info_buf, sizeof(info_buf),"\nBooking info\n|- Shift ID: %d\n|- Chose seat(s):%s\n|- Paid:\n\n", requestP[conn_fd].booking_info.shift_id, seat_str);
+                                write(requestP[conn_fd].conn_fd, info_buf, strlen(info_buf));
+                            }
+                        } else {
+                            // Invalid seat number
+                            write(requestP[conn_fd].conn_fd, "Invalid seat number.\n", strlen("Invalid seat number.\n"));
                         }
-                    } else {
-                        // Invalid seat number
-                        write(requestP[conn_fd].conn_fd, "Invalid seat number.\n", strlen("Invalid seat number.\n"));
+                    } else if(strlen(requestP[conn_fd].buf)<3 && requestP->booking_info.cur_chosen_seat[selected_seat] == 1){ // requestP.booking_info.cur_chosen_seat[selected_seat] == 1
+                        //The client want to cancel the reserved seat
+                        requestP->booking_info.cur_chosen_seat[selected_seat] = 0;//1-based
+                        cur_seat_stat(requestP, seat_str);
+
+                        char info_buf[MAX_MSG_LEN];  // Buffer to hold the formatted string
+                        snprintf(info_buf, sizeof(info_buf), ">>> You cancel the seat.\n\nBooking info\n|- Shift ID: %d\n|- Chose seat(s):%s\n|- Paid:\n\n", requestP[conn_fd].booking_info.shift_id, seat_str);
+                        write(requestP[conn_fd].conn_fd, info_buf, strlen(info_buf));
+
+                        //*******Release write loc of the canceled seat number */
+
+                    } else { // strlen(requestP[conn_fd].buf) == 3 -->the client click 'pay'
+
                     }
                 }
             }
