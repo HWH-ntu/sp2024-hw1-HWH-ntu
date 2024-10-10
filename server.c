@@ -76,6 +76,12 @@ int handle_read(request* reqP) {
     return 1;
 }
 
+int train_number_to_fd (int train_number) {
+    int train_index = train_number - TRAIN_ID_START;
+    int train_fd_no = trains[train_index].file_fd;
+    return train_fd_no;
+}
+
 #ifdef READ_SERVER
 int print_train_info(int train_fd, char* seat_availability_msg, size_t msg_len) { //從struct印出來-->有沒有成功讀出來，並且格式化為string?
     // print_train_info 做的事是讀檔，並且將檔案的內容格式化地讀進buffer(seat_availability_msg)中
@@ -116,35 +122,34 @@ int print_train_info(request *reqP) {
     return 0;
 }
 
-int train_number_to_fd (int train_number) {
-    int train_index = train_number - TRAIN_ID_START;
-    int train_fd_no = trains[train_index].file_fd;
-    return train_fd_no;
-}
-
 int if_seat_available (int train_number, int seat_number, enum SEAT* seat_availability) {
-    lseek(train_number_to_fd(train_number), (seat_number-1)*2 , SEEK_SET);
+    int train_fd = train_number_to_fd(train_number);
+    int lseek_n = lseek(train_fd, (seat_number-1)*2 , SEEK_SET);
+    //printf("lseek_n:%d\n", lseek_n);
+    //printf("train_fd:%d\n", train_fd);
     char seat_stat[2] = {0}; //因為atoi吃c string，所以還是要給2個位置
-    int n = read(train_number, seat_stat, 1);
+    int n = read(train_fd, seat_stat, 1);
+    //printf("n: %d %d\n", n, errno);
+    //printf("char_seat_stat: %s\n", seat_stat);
     int seat_stat_no = atoi(seat_stat);
     //這邊有一個因為拿不到loc，所以代表seat被reserve，要回傳CHOSEN
-
     if(n >=1){
         if( seat_stat_no == 0){//seat is now empty
-            seat_availability = EMPTY;
+            *seat_availability = EMPTY;
         } else if (seat_stat_no == 1){
-            seat_availability = PAID;
+            *seat_availability = PAID;
         }
+        return 1;
     } else {
         printf("Cannot retrieve seat availability successfully.");
+        return 0;
     }
-    return 1;
 }
 #endif
 
 int main(int argc, char** argv) {
     int Train_seat_left[5] = {40, 0, 21, 22, 26}; //How many seats left in each train. (e.g., 902001 -> 0, 902005 -> 4)
-    int If_Train_Full[5] = {1, 0, 0, 0, 0};//Full:1, Not-Full:0
+    int If_Train_Full[5] = {0, 1, 0, 0, 0};//Full:1, Not-Full:0
 
     // Parse args.
     if (argc != 2) {
@@ -203,7 +208,7 @@ int main(int argc, char** argv) {
         }
 
         // Client input is in requestP[conn_fd].buf, convert it to an integer
-        int requestP[conn_fd].booking_info.shift_id = atoi(requestP[conn_fd].buf);
+        requestP[conn_fd].booking_info.shift_id = atoi(requestP[conn_fd].buf);
 
         // Error handling: Check if the input is within the valid range
         if (requestP[conn_fd].booking_info.shift_id >= TRAIN_ID_START && requestP[conn_fd].booking_info.shift_id <= TRAIN_ID_END) {
@@ -246,7 +251,7 @@ int main(int argc, char** argv) {
         }
 
         // Client input is in requestP[conn_fd].buf, convert it to an integer
-        int requestP[conn_fd].booking_info.shift_id = atoi(requestP[conn_fd].buf);
+        requestP[conn_fd].booking_info.shift_id = atoi(requestP[conn_fd].buf);
         //requestP[conn_fd].buf = 0;//clean up
 
         // Error handling: Check if the input is within the valid range
@@ -260,36 +265,37 @@ int main(int argc, char** argv) {
                 // Send the formatted booking info to the client
                 char info_buf[MAX_MSG_LEN];  // Buffer to hold the formatted string
                 snprintf(info_buf, sizeof(info_buf),"\nBooking info\n|- Shift ID: %d\n|- Chose seat(s):\n|- Paid:\n", requestP[conn_fd].booking_info.shift_id);
-                write(requestP[conn_fd].conn_fd, info_buf, strlen(booking_info));
+                write(requestP[conn_fd].conn_fd, info_buf, strlen(info_buf));
 
                 while(1){
                     write(requestP[conn_fd].conn_fd, write_seat_msg, strlen(write_seat_msg));
                     //write_seat_msg = "Select the seat [1-40] or type \"pay\" to confirm: ";
 
-                    ret = handle_read(&requestP[conn_fd]); 
-                    if (ret < 0) { 
+                    int seat_ret = handle_read(&requestP[conn_fd]); 
+                    printf("seat_ret = %d\n", seat_ret);
+                    if (seat_ret < 0) { 
                         fprintf(stderr, "bad request from %s\n", requestP[conn_fd].host);
                         continue;
-                    } else if (ret == 0) { 
+                    } else if (seat_ret == 0) { 
                         continue;
                     }
 
                     // Convert the seat input to an integer (seat number)
                     int selected_seat = atoi(requestP[conn_fd].buf);
-
+                    printf("selected seat = %d\n", selected_seat);
                     // Function to input train number and seat, then connect with enum SEAT 
                     enum SEAT seat_availability = INITIAL;
-                    int ret = if_seat_available (requestP[conn_fd].booking_info.shift_id, selected_seat, seat_availability);
+                    int seat_part = if_seat_available (requestP[conn_fd].booking_info.shift_id, selected_seat, &seat_availability);
 
                     // Check if the seat number is valid (1-40)
-                    if (selected_seat >= 1 && selected_seat <= SEAT_NUM && ret ==1) {
+                    if (selected_seat >= 1 && selected_seat <= SEAT_NUM && seat_part ==1) {
                         // Check the seat status
                         if (seat_availability == EMPTY) {
                             //*********要加write loc ********/
                             //reserving the seat now
                             char info_buf[MAX_MSG_LEN];  // Buffer to hold the formatted string
                             snprintf(info_buf, sizeof(info_buf),"\nBooking info\n|- Shift ID: %d\n|- Chose seat(s):%d\n|- Paid:\n", requestP[conn_fd].booking_info.shift_id, selected_seat);
-                            write(requestP[conn_fd].conn_fd, info_buf, strlen(booking_info));
+                            write(requestP[conn_fd].conn_fd, info_buf, strlen(info_buf));
 
                         } else if (seat_availability == PAID) {
                             // Seat is already booked
