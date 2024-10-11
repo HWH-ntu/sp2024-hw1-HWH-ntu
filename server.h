@@ -21,9 +21,10 @@
  */
 
 #define ERR_EXIT(a) do { perror(a); exit(1); } while(0)
+//
 
 #define TRAIN_NUM 5
-#define SEAT_NUM 40
+#define SEAT_NUM 40 //全部的seat number
 #define TRAIN_ID_START 902001
 #define TRAIN_ID_END TRAIN_ID_START + (TRAIN_NUM - 1)
 #define FILE_LEN 50
@@ -37,9 +38,10 @@ enum STATE {
 };
 
 enum SEAT {
-    UNKNOWN,    // Seat is unknown
-    CHOSEN,     // Seat is currently being reserved 
-    PAID        // Seat is already paid for
+    EMPTY,    // EMPTY = 0;Seat is unknown這邊指的是0
+    PAID,       // PAID = 1;Seat is already paid for 
+    CHOSEN,      // CHOSEN = 2;for Seat is currently being reserved 
+    INITIAL      // 初始值 = 3
 };
 
 typedef struct {
@@ -53,6 +55,8 @@ typedef struct {
     int train_fd;               // train file fds
     int num_of_chosen_seats;    // num of chosen seats
     enum SEAT seat_stat[SEAT_NUM];   // seat status
+    int cur_chosen_seat[SEAT_NUM+1]; // 現在已經選成功的位子;1:selected;0:not selected 注意這邊是從1開始到40
+    int cur_paid_seat[SEAT_NUM+1]; //1-based; WRITE_SERVER pay功能在用
 } record;
 
 typedef struct {
