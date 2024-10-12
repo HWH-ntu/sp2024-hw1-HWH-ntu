@@ -166,10 +166,12 @@ int cur_seat_stat(request* reqP, char* seat_str, int* seat_array) {//fail:-1; su
 
     int seat_reserved_num = 0;
 
-    // Initialize seat_str as an empty string
-    seat_str[0] = '\0';
+    //initialize
+    for(int i = 0; i<= SEAT_NUM; i++){
+        seat_str[i] =0;
+    }
 
-    char temp[8];  // Temporary buffer to hold each seat number
+    char temp[8] = {0};  // Temporary buffer to hold each seat number
     // Traverse the cur_chosen_seat array to concatenate the chosen seats
     for (int i = 1; i <= SEAT_NUM; i++) {
         if (seat_array[i] == 1) {
@@ -316,6 +318,7 @@ int main(int argc, char** argv) {
 #elif defined WRITE_SERVER
 Retry_train_number:
         memset(requestP->booking_info.cur_chosen_seat, 0, sizeof(requestP->booking_info.cur_chosen_seat));
+        memset(requestP->booking_info.all_paid_seat, 0, sizeof(requestP->booking_info.all_paid_seat));
         char seat_str[MAX_MSG_LEN] = {0};  // Initialize an empty string to store seat numbers
         char paid_seat_str[MAX_MSG_LEN] = {0}; // Initialize an empty string to store seat numbers (for all paid seats)
         write(requestP[conn_fd].conn_fd, write_shift_msg, strlen(write_shift_msg));
@@ -426,6 +429,9 @@ Retry_train_number:
                                 requestP->booking_info.all_paid_seat[i] = 1;
                                 requestP->booking_info.cur_chosen_seat[i] = 0;
                             } //IGNORE ERROR
+                        }
+                        for(int i = 1; i< (SEAT_NUM+1);i++){
+                            printf("requestP->booking_info.all_paid_seat[%d]:%d\n", i, requestP->booking_info.cur_chosen_seat[i]);
                         }
 
                         cur_seat_stat(requestP, paid_seat_str, requestP->booking_info.all_paid_seat);
