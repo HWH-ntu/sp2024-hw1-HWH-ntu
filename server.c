@@ -175,7 +175,7 @@ int cur_seat_stat(request* reqP, char* seat_str) {//fail:-1; success, return how
         if (reqP->booking_info.cur_chosen_seat[i] == 1) {
             // If seat_str is not empty, add a comma before concatenating the next seat number
             if (strlen(seat_str) > 0) {
-                strcat(seat_str, ", ");
+                strcat(seat_str, ",");
             }
             // Add the seat number to seat_str
             snprintf(temp, sizeof(temp), "%d", i);  // Convert the seat number to a string
