@@ -314,12 +314,12 @@ int main(int argc, char** argv) {
 
         int ret = handle_read(&requestP[conn_fd]); 
         //handle_read：讀client input,讀到它的internal buffer
-	    if (ret < 0) { // -1: read failed user還沒寫就斷線，就沒寫到
-            fprintf(stderr, "bad request from %s\n", requestP[conn_fd].host);
-            continue;
-        } else if (ret == 0) { // 0: read EOF (client down)
-            continue;
-        }
+	    // if (ret < 0) { // -1: read failed user還沒寫就斷線，就沒寫到
+        //     fprintf(stderr, "bad request from %s\n", requestP[conn_fd].host);
+        //     continue;
+        // } else if (ret == 0) { // 0: read EOF (client down)
+        //     continue;
+        // }
 
         // Client input is in requestP[conn_fd].buf, convert it to an integer
 
@@ -328,7 +328,11 @@ int main(int argc, char** argv) {
         //requestP[conn_fd].buf = 0;//clean up
 
         // Error handling: Check if the input is within the valid range
-        if (requestP[conn_fd].booking_info.shift_id >= TRAIN_ID_START && requestP[conn_fd].booking_info.shift_id <= TRAIN_ID_END) {
+        if (ret <0) { // -1: read failed user還沒寫就斷線，就沒寫到
+            fprintf(stderr, "bad request from %s\n", requestP[conn_fd].host);
+        } else if (ret == 0){
+            printf("Client exit;");
+        } else if(ret >0 && requestP[conn_fd].booking_info.shift_id >= TRAIN_ID_START && requestP[conn_fd].booking_info.shift_id <= TRAIN_ID_END) {
             if(If_Train_Full[train_index] == 1){
                 write(requestP[conn_fd].conn_fd, full_msg, strlen(full_msg));// full_msg = ">>> The shift is fully booked.\n";
             } else {// the train is not full
@@ -481,14 +485,13 @@ int main(int argc, char** argv) {
                     }
                 }
             }
-        } else {
+        } else if(ret>0 && (requestP[conn_fd].booking_info.shift_id < TRAIN_ID_START && requestP[conn_fd].booking_info.shift_id > TRAIN_ID_END)){
             write(requestP[conn_fd].conn_fd, invalid_op_msg, strlen(invalid_op_msg)); 
-            continue;
         }
 
         // TODO: handle requests from clients
-        sprintf(buf,"%s : %s",accept_write_header,requestP[conn_fd].buf);
-        write(requestP[conn_fd].conn_fd, buf, strlen(buf)); 
+        //sprintf(buf,"%s : %s",accept_write_header,requestP[conn_fd].buf);
+        //write(requestP[conn_fd].conn_fd, buf, strlen(buf)); 
  
 #endif
         close(requestP[conn_fd].conn_fd); //關起這個client的connection
