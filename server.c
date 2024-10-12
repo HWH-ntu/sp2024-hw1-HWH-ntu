@@ -388,6 +388,7 @@ Retry_train_number:
                                 // Seat is already booked
                                 write(requestP[conn_fd].conn_fd, seat_booked_msg, strlen(seat_booked_msg));
 
+                                cur_seat_stat(requestP, seat_str, requestP->booking_info.cur_chosen_seat);//testcase 2-7 fail
                                 char info_buf[MAX_MSG_LEN];  // Buffer to hold the formatted string
                                 snprintf(info_buf, sizeof(info_buf),"\nBooking info\n|- Shift ID: %d\n|- Chose seat(s): %s\n|- Paid: %s\n\n", requestP[conn_fd].booking_info.shift_id, seat_str, paid_seat_str);
                                 write(requestP[conn_fd].conn_fd, info_buf, strlen(info_buf));
