@@ -57,6 +57,7 @@ typedef struct {
     enum SEAT seat_stat[SEAT_NUM];   // seat status
     int cur_chosen_seat[SEAT_NUM+1]; // 現在已經選成功的位子;1:selected;0:not selected 注意這邊是從1開始到40
     int cur_paid_seat[SEAT_NUM+1]; //1-based; WRITE_SERVER pay功能在用
+    int all_paid_seat[SEAT_NUM+1]; //1-based; WRITE_SERVER 最後要印這個
 } record;
 
 typedef struct {
