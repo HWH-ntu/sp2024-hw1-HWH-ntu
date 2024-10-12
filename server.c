@@ -73,7 +73,14 @@ int handle_read(request* reqP) {
     memmove(reqP->buf, buf, len); //為何不能直接寫進req.buf?因為好的code style應該要有buf過度，可以避免將錯誤的資訊直接寫進req.buf之中。確定好了這個buf的資料是對的之後，才用memmove去copy data
     reqP->buf[len - 1] = '\0';
     reqP->buf_len = len-1;
-    return 1;
+
+
+    if (strcmp(reqP->buf, "exit") == 0){
+        write(reqP->conn_fd, exit_msg, strlen(exit_msg));
+        return 0; //if handle_read return 0 表示client要exit
+    } else {
+        return 1;
+    }
 }
 
 int train_number_to_fd (int train_number) {
@@ -265,7 +272,7 @@ int main(int argc, char** argv) {
             fprintf(stderr, "bad request from %s\n", requestP[conn_fd].host);
             continue;
         } else if (ret == 0) { // 0: read EOF (client down)
-            continue;
+            break;
         }
 
         // Client input is in requestP[conn_fd].buf, convert it to an integer
@@ -341,7 +348,7 @@ int main(int argc, char** argv) {
                         fprintf(stderr, "bad request from %s\n", requestP[conn_fd].host);
                         continue;
                     } else if (seat_ret == 0) { 
-                        continue;
+                        break;
                     }
 
                     // Convert the seat input to an integer (seat number)
@@ -457,13 +464,13 @@ int main(int argc, char** argv) {
                             fprintf(stderr, "bad request from %s\n", requestP[conn_fd].host);
                             continue;
                         } else if (ret == 0) { // 0: read EOF (client down)
-                            continue;
+                            break;
                         }
 
                         if(ret == 1){ // read successfully
-                            if (strcmp(requestP[conn_fd].buf, "exit") == 0) { //compare the user input, if the user input 'exit', then exit
-                                break;
-                            } else if (strcmp(requestP[conn_fd].buf, "seat") == 0) {
+                            //if (strcmp(requestP[conn_fd].buf, "exit") == 0) { //compare the user input, if the user input 'exit', then exit
+                            //    break; } else 
+                            if (strcmp(requestP[conn_fd].buf, "seat") == 0) {
                                 continue;
                             } else {
                                 write(requestP[conn_fd].conn_fd, invalid_op_msg, strlen(invalid_op_msg));
