@@ -111,9 +111,7 @@ int train_number_to_fd (int train_number) {
 int read_loc_read(int train_fd, char* seat_availability_msg, size_t msg_len) {
     char seat_buffer[2] = {0};//seat_buffer最少要給到2，因為最後會補\0
 
-    int pos = 0;
     for(int i=1;i<=SEAT_NUM;i++){//這個i是client端的座位號，由1開始
-        //pos = (i-1)*2; //pos是檔案的位置
         lseek(train_fd, (i-1)*2, SEEK_SET);
         int bytes_read = read(train_fd, seat_buffer, 1); //因為最後有\0，所以只吃一個byte
         if (bytes_read <= 0) {
@@ -148,6 +146,30 @@ int print_train_info(request *reqP) {
                  "|- Paid: %s\n\n"
                  ,902001, chosen_seat, paid);
     return 0;
+}
+
+int if_train_full(int train_number){ //會去read給訂車號的檔案，全部都是1才算full
+//return -1:error; return 0: not full; return 1:full
+    int train_fd = train_number_to_fd(train_number);
+    char seat_buffer[2] = {0};//seat_buffer最少要給到2，因為最後會補\0
+    int num =0;//這是用來計數吃到了幾次1，吃到了40
+
+    for(int i=1;i<=SEAT_NUM;i++){//這個i是client端的座位號，由1開始
+        lseek(train_fd, (i-1)*2, SEEK_SET);
+        int bytes_read = read(train_fd, seat_buffer, 1); //因為最後有\0，所以只吃一個byte
+        if (bytes_read <= 0) {
+            printf("Error reading seat data. Seat number: %d\n", i);
+            return -1;
+        }
+        if(seat_buffer[0] == '1') {
+            num++;
+        } else { 
+            return 0;
+        }
+    }
+    if(num == 40){
+        return 1;
+    }
 }
 
 int if_seat_available (int train_number, int seat_number, enum SEAT* seat_availability) {
@@ -236,8 +258,8 @@ int modify_booked_seat(int train_number, int seat_number){//一次只改一個nu
 #endif
 
 int main(int argc, char** argv) {
-    int Train_seat_left[5] = {40, 0, 21, 22, 26}; //How many seats left in each train. (e.g., 902001 -> 0, 902005 -> 4)
-    int If_Train_Full[5] = {0, 1, 0, 0, 0};//Full:1, Not-Full:0
+    //int Train_seat_left[5] = {40, 0, 21, 22, 26}; //How many seats left in each train. (e.g., 902001 -> 0, 902005 -> 4)
+    //int If_Train_Full[5] = {0, 1, 0, 0, 0};//Full:1, Not-Full:0
     int train_index;
 
     // Parse args.
@@ -355,7 +377,7 @@ int main(int argc, char** argv) {
         } else if (ret == 0){
             printf("Client exit;");
         } else if(ret >0 && requestP[conn_fd].booking_info.shift_id >= TRAIN_ID_START && requestP[conn_fd].booking_info.shift_id <= TRAIN_ID_END) {
-            if(If_Train_Full[train_index] == 1){
+            if(if_train_full(requestP[conn_fd].booking_info.shift_id) == 1){
                 write(requestP[conn_fd].conn_fd, full_msg, strlen(full_msg));// full_msg = ">>> The shift is fully booked.\n";
             } else {// the train is not full
                 // Send the formatted booking info to the client
@@ -460,10 +482,10 @@ int main(int argc, char** argv) {
                         memset(requestP->booking_info.cur_chosen_seat, 0, sizeof(requestP->booking_info.cur_chosen_seat));
 
                         //Maintain some stuffs~
-                        Train_seat_left[train_index] = Train_seat_left[train_index] - cur_seat_stat(requestP, seat_str);
-                        if(Train_seat_left[train_index] == 0){
-                            If_Train_Full[train_index] = 1;
-                        }
+                        // Train_seat_left[train_index] = Train_seat_left[train_index] - cur_seat_stat(requestP, seat_str);
+                        // if(Train_seat_left[train_index] == 0){
+                        //     If_Train_Full[train_index] = 1;
+                        // }
 
                         memset(seat_str, 0, strlen(seat_str));
 
