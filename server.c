@@ -314,20 +314,12 @@ int main(int argc, char** argv) {
     }
 
 #elif defined WRITE_SERVER
+Retry_train_number:
         memset(requestP->booking_info.cur_chosen_seat, 0, sizeof(requestP->booking_info.cur_chosen_seat));
         char seat_str[MAX_MSG_LEN] = {0};  // Initialize an empty string to store seat numbers
         write(requestP[conn_fd].conn_fd, write_shift_msg, strlen(write_shift_msg));
 
         int ret = handle_read(&requestP[conn_fd]); 
-        //handle_read：讀client input,讀到它的internal buffer
-	    // if (ret < 0) { // -1: read failed user還沒寫就斷線，就沒寫到
-        //     fprintf(stderr, "bad request from %s\n", requestP[conn_fd].host);
-        //     continue;
-        // } else if (ret == 0) { // 0: read EOF (client down)
-        //     continue;
-        // }
-
-        // Client input is in requestP[conn_fd].buf, convert it to an integer
 
         requestP[conn_fd].booking_info.shift_id = atoi(requestP[conn_fd].buf);
         train_index = requestP[conn_fd].booking_info.shift_id - TRAIN_ID_START; // Get the index for the train number (e.g., 902001 -> 0, 902005 -> 4)
@@ -341,12 +333,12 @@ int main(int argc, char** argv) {
         } else if(ret >0 && requestP[conn_fd].booking_info.shift_id >= TRAIN_ID_START && requestP[conn_fd].booking_info.shift_id <= TRAIN_ID_END) {
             if(if_train_full(requestP[conn_fd].booking_info.shift_id) == 1){
                 write(requestP[conn_fd].conn_fd, full_msg, strlen(full_msg));// full_msg = ">>> The shift is fully booked.\n";
+                goto Retry_train_number;
             } else {// the train is not full
                 // Send the formatted booking info to the client
                 char info_buf[MAX_MSG_LEN];  // Buffer to hold the formatted string
-                snprintf(info_buf, sizeof(info_buf),"\nBooking info\n|- Shift ID: %d\n|- Chose seat(s):\n|- Paid:\n\n", requestP[conn_fd].booking_info.shift_id);
+                snprintf(info_buf, sizeof(info_buf),"\nBooking info\n|- Shift ID: %d\n|- Chose seat(s): \n|- Paid: \n\n", requestP[conn_fd].booking_info.shift_id);
                 write(requestP[conn_fd].conn_fd, info_buf, strlen(info_buf));
-
                 while(1){
                     write(requestP[conn_fd].conn_fd, write_seat_msg, strlen(write_seat_msg));
                     //write_seat_msg = "Select the seat [1-40] or type \"pay\" to confirm: ";
@@ -385,7 +377,7 @@ int main(int argc, char** argv) {
 
                                 cur_seat_stat(requestP, seat_str);
                                 char info_buf[MAX_MSG_LEN];  // Buffer to hold the formatted string
-                                snprintf(info_buf, sizeof(info_buf),"\nBooking info\n|- Shift ID: %d\n|- Chose seat(s):%s\n|- Paid:\n\n", requestP[conn_fd].booking_info.shift_id, seat_str);
+                                snprintf(info_buf, sizeof(info_buf),"\nBooking info\n|- Shift ID: %d\n|- Chose seat(s): %s\n|- Paid: \n\n", requestP[conn_fd].booking_info.shift_id, seat_str);
                                 write(requestP[conn_fd].conn_fd, info_buf, strlen(info_buf));
 
                             } else if (seat_availability == PAID) {
@@ -393,14 +385,14 @@ int main(int argc, char** argv) {
                                 write(requestP[conn_fd].conn_fd, seat_booked_msg, strlen(seat_booked_msg));
 
                                 char info_buf[MAX_MSG_LEN];  // Buffer to hold the formatted string
-                                snprintf(info_buf, sizeof(info_buf),"\nBooking info\n|- Shift ID: %d\n|- Chose seat(s):%s\n|- Paid:\n\n", requestP[conn_fd].booking_info.shift_id, seat_str);
+                                snprintf(info_buf, sizeof(info_buf),"\nBooking info\n|- Shift ID: %d\n|- Chose seat(s): %s\n|- Paid: \n\n", requestP[conn_fd].booking_info.shift_id, seat_str);
                                 write(requestP[conn_fd].conn_fd, info_buf, strlen(info_buf));
                             } else if (seat_availability == CHOSEN) {
                                 // Seat is reserved by someone else
                                 write(requestP[conn_fd].conn_fd, lock_msg, strlen(lock_msg));
 
                                 char info_buf[MAX_MSG_LEN];  // Buffer to hold the formatted string
-                                snprintf(info_buf, sizeof(info_buf),"\nBooking info\n|- Shift ID: %d\n|- Chose seat(s):%s\n|- Paid:\n\n", requestP[conn_fd].booking_info.shift_id, seat_str);
+                                snprintf(info_buf, sizeof(info_buf),"\nBooking info\n|- Shift ID: %d\n|- Chose seat(s): %s\n|- Paid: \n\n", requestP[conn_fd].booking_info.shift_id, seat_str);
                                 write(requestP[conn_fd].conn_fd, info_buf, strlen(info_buf));
                             }
                         } else {
@@ -413,14 +405,14 @@ int main(int argc, char** argv) {
                         cur_seat_stat(requestP, seat_str);
 
                         char info_buf[MAX_MSG_LEN];  // Buffer to hold the formatted string
-                        snprintf(info_buf, sizeof(info_buf), "\n%s\nBooking info\n|- Shift ID: %d\n|- Chose seat(s):%s\n|- Paid:\n\n", cancel_msg, requestP[conn_fd].booking_info.shift_id, seat_str);
+                        snprintf(info_buf, sizeof(info_buf), "%s\nBooking info\n|- Shift ID: %d\n|- Chose seat(s): %s\n|- Paid: \n\n", cancel_msg, requestP[conn_fd].booking_info.shift_id, seat_str);
                         write(requestP[conn_fd].conn_fd, info_buf, strlen(info_buf));
 
                         //*******Release write loc of the canceled seat number */
 
                     } else if (strlen(requestP[conn_fd].buf)==3 && cur_seat_stat(requestP, seat_str) == 0){ // strlen(requestP[conn_fd].buf) == 3 -->the client click 'pay'
                         char info_buf[MAX_MSG_LEN];  // Buffer to hold the formatted string
-                        snprintf(info_buf, sizeof(info_buf), "\n%s\nBooking info\n|- Shift ID: %d\n|- Chose seat(s):%s\n|- Paid:\n\n", no_seat_msg, requestP[conn_fd].booking_info.shift_id, seat_str);
+                        snprintf(info_buf, sizeof(info_buf), "%s\nBooking info\n|- Shift ID: %d\n|- Chose seat(s): %s\n|- Paid: \n\n", no_seat_msg, requestP[conn_fd].booking_info.shift_id, seat_str);
                         write(requestP[conn_fd].conn_fd, info_buf, strlen(info_buf));
                     } else if (strlen(requestP[conn_fd].buf)==3 && cur_seat_stat(requestP, seat_str) > 0) {
                         printf("HERE_1\n");
@@ -465,7 +457,7 @@ int main(int argc, char** argv) {
                             }
                         }
                         char info_buf[MAX_MSG_LEN];  // Buffer to hold the formatted string
-                        snprintf(info_buf, sizeof(info_buf), "\n%s\nBooking info\n|- Shift ID: %d\n|- Chose seat(s):\n|- Paid:%s\n\n%s", book_succ_msg, requestP[conn_fd].booking_info.shift_id, seat_str, write_seat_or_exit_msg);
+                        snprintf(info_buf, sizeof(info_buf), "%s\nBooking info\n|- Shift ID: %d\n|- Chose seat(s): \n|- Paid: %s\n\n%s", book_succ_msg, requestP[conn_fd].booking_info.shift_id, seat_str, write_seat_or_exit_msg);
                         write(requestP[conn_fd].conn_fd, info_buf, strlen(info_buf));
 
                         int ret = handle_read(&requestP[conn_fd]); 
@@ -487,18 +479,17 @@ int main(int argc, char** argv) {
                                 break;
                             }
                         }
-
                     }
                 }
             }
-        } else if(ret>0 && (requestP[conn_fd].booking_info.shift_id < TRAIN_ID_START && requestP[conn_fd].booking_info.shift_id > TRAIN_ID_END)){
+        } else if(ret>0 && (requestP[conn_fd].booking_info.shift_id < TRAIN_ID_START || requestP[conn_fd].booking_info.shift_id > TRAIN_ID_END)){
             write(requestP[conn_fd].conn_fd, invalid_op_msg, strlen(invalid_op_msg)); 
         }
 
         // TODO: handle requests from clients
         //sprintf(buf,"%s : %s",accept_write_header,requestP[conn_fd].buf);
         //write(requestP[conn_fd].conn_fd, buf, strlen(buf)); 
- 
+    
 #endif
         close(requestP[conn_fd].conn_fd); //關起這個client的connection
         free_request(&requestP[conn_fd]); //將剛剛的輸入清空
