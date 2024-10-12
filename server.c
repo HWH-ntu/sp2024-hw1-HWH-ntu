@@ -90,24 +90,6 @@ int train_number_to_fd (int train_number) {
 }
 
 #ifdef READ_SERVER
-// int print_train_info(int train_fd, char* seat_availability_msg, size_t msg_len) { //從struct印出來-->有沒有成功讀出來，並且格式化為string?
-//     // print_train_info 做的事是讀檔，並且將檔案的內容格式化地讀進buffer(seat_availability_msg)中
-//     char seat_buffer[MAX_MSG_LEN]= {0}; // Initialize with zero 相當於 memset(seat_buffer, 0, sizeof(seat_buffer));
-
-//     // Seek to the beginning of the file before reading
-//     lseek(train_fd, 0, SEEK_SET);
-
-//     // Read the seat data from the file
-//     int bytes_read = read(train_fd, seat_buffer, sizeof(seat_buffer));
-//     if (bytes_read <= 0) {
-//         snprintf(seat_availability_msg, msg_len, "Error reading seat data.\n");
-//         return -1;
-//     }
-
-//     snprintf(seat_availability_msg, msg_len, "%s", seat_buffer); 
-
-//     return 0;  
-// }
 int read_loc_read(int train_fd, char* seat_availability_msg, size_t msg_len) {
     char seat_buffer[2] = {0};//seat_buffer最少要給到2，因為最後會補\0
 
@@ -128,26 +110,6 @@ int read_loc_read(int train_fd, char* seat_availability_msg, size_t msg_len) {
     return 0;
 }
 #else //WRITE_SERVER
-int print_train_info(request *reqP) {
-    /*
-     * Booking info
-     * |- Shift ID: 902001
-     * |- Chose seat(s): 1,2
-     * |- Paid: 3,4
-     */
-    char buf[MAX_MSG_LEN*3];
-    char chosen_seat[MAX_MSG_LEN] = "1,2";
-    char paid[MAX_MSG_LEN] = "3,4";
-
-    memset(buf, 0, sizeof(buf));
-    sprintf(buf, "\nBooking info\n"
-                 "|- Shift ID: %d\n"
-                 "|- Chose seat(s): %s\n"
-                 "|- Paid: %s\n\n"
-                 ,902001, chosen_seat, paid);
-    return 0;
-}
-
 int if_train_full(int train_number){ //會去read給訂車號的檔案，全部都是1才算full
 //return -1:error; return 0: not full; return 1:full
     int train_fd = train_number_to_fd(train_number);
