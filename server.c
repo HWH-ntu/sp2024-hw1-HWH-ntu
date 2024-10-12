@@ -308,7 +308,7 @@ int main(int argc, char** argv) {
             // If the input is out of range, prompt the user again without terminating the loop
             // const char* invalid_op_msg = ">>> Invalid operation.\n";
             write(requestP[conn_fd].conn_fd, invalid_op_msg, strlen(invalid_op_msg));
-            continue;
+            break;
         }
 
     }
@@ -357,7 +357,7 @@ Retry_train_number:
                     int selected_seat = atoi(requestP[conn_fd].buf);
                     if(strcmp(requestP[conn_fd].buf, "pay") != 0 && (selected_seat > SEAT_NUM || selected_seat < 1)){ //還沒打任何的座位號碼直接打pay也會進這裡喔^_<
                         write(requestP[conn_fd].conn_fd, invalid_op_msg, strlen(invalid_op_msg)); //selected seat number not in valid range
-                        continue;
+                        break;
                     }
 
                     if(strlen(requestP[conn_fd].buf)<3 && requestP->booking_info.cur_chosen_seat[selected_seat] == 0) {//這個位子還沒被選過
