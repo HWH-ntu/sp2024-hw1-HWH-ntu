@@ -90,23 +90,44 @@ int train_number_to_fd (int train_number) {
 }
 
 #ifdef READ_SERVER
-int print_train_info(int train_fd, char* seat_availability_msg, size_t msg_len) { //從struct印出來-->有沒有成功讀出來，並且格式化為string?
-    // print_train_info 做的事是讀檔，並且將檔案的內容格式化地讀進buffer(seat_availability_msg)中
-    char seat_buffer[MAX_MSG_LEN]= {0}; // Initialize with zero 相當於 memset(seat_buffer, 0, sizeof(seat_buffer));
+// int print_train_info(int train_fd, char* seat_availability_msg, size_t msg_len) { //從struct印出來-->有沒有成功讀出來，並且格式化為string?
+//     // print_train_info 做的事是讀檔，並且將檔案的內容格式化地讀進buffer(seat_availability_msg)中
+//     char seat_buffer[MAX_MSG_LEN]= {0}; // Initialize with zero 相當於 memset(seat_buffer, 0, sizeof(seat_buffer));
 
-    // Seek to the beginning of the file before reading
-    lseek(train_fd, 0, SEEK_SET);
+//     // Seek to the beginning of the file before reading
+//     lseek(train_fd, 0, SEEK_SET);
 
-    // Read the seat data from the file
-    int bytes_read = read(train_fd, seat_buffer, sizeof(seat_buffer));
-    if (bytes_read <= 0) {
-        snprintf(seat_availability_msg, msg_len, "Error reading seat data.\n");
-        return -1;
+//     // Read the seat data from the file
+//     int bytes_read = read(train_fd, seat_buffer, sizeof(seat_buffer));
+//     if (bytes_read <= 0) {
+//         snprintf(seat_availability_msg, msg_len, "Error reading seat data.\n");
+//         return -1;
+//     }
+
+//     snprintf(seat_availability_msg, msg_len, "%s", seat_buffer); 
+
+//     return 0;  
+// }
+int read_loc_read(int train_fd, char* seat_availability_msg, size_t msg_len) {
+    char seat_buffer[2] = {0};//seat_buffer最少要給到2，因為最後會補\0
+
+    int pos = 0;
+    for(int i=1;i<=SEAT_NUM;i++){//這個i是client端的座位號，由1開始
+        //pos = (i-1)*2; //pos是檔案的位置
+        lseek(train_fd, (i-1)*2, SEEK_SET);
+        int bytes_read = read(train_fd, seat_buffer, 1); //因為最後有\0，所以只吃一個byte
+        if (bytes_read <= 0) {
+            snprintf(seat_availability_msg, msg_len, "Error reading seat data. Seat number: %d\n", i);
+            return -1;
+        }
+
+        if((i%4)==0){ // snprintf第一個para是寫入的位置，第二個para不能是固定的(如果在迴圈中)，不然會寫到其他記憶體
+            snprintf(seat_availability_msg + (i-1) * 2, msg_len - ((i-1) * 2), "%s\n", seat_buffer);
+        } else {
+            snprintf(seat_availability_msg + (i-1) * 2, msg_len - ((i-1) * 2), "%s ", seat_buffer);
+        }
     }
-
-    snprintf(seat_availability_msg, msg_len, "%s", seat_buffer); 
-
-    return 0;  
+    return 0;
 }
 #else //WRITE_SERVER
 int print_train_info(request *reqP) {
@@ -288,8 +309,9 @@ int main(int argc, char** argv) {
             char seat_availability_msg[MAX_MSG_LEN];
 
             // Print the seat info from the file using the train's file descriptor
-            if (print_train_info(train_number_to_fd(requestP[conn_fd].booking_info.shift_id), seat_availability_msg, sizeof(seat_availability_msg)) == 0) {
-                // print_train_info 做的事是讀檔，並且將檔案的內容讀進buffer(seat_availability_msg)中，然後後續透過write，將這個msg output到那個connection的client output上 (requestP[conn_fd].conn_fd)
+            if (read_loc_read(train_number_to_fd(requestP[conn_fd].booking_info.shift_id), seat_availability_msg, sizeof(seat_availability_msg)) == 0) {
+                //這邊有將原本的print_train_info改成read_loc_read
+                // read_loc_read 做的事是讀檔，並且將檔案的內容讀進buffer(seat_availability_msg)中，然後後續透過write，將這個msg output到那個connection的client output上 (requestP[conn_fd].conn_fd)
                 // Send the seat availability to the client
                 write(requestP[conn_fd].conn_fd, seat_availability_msg, strlen(seat_availability_msg));
             } else {
