@@ -505,8 +505,10 @@ Retry_train_number:
                             write(requestP[conn_fd].conn_fd, invalid_op_msg, strlen(invalid_op_msg));
                         }
                     } else if(strcmp(requestP[conn_fd].buf, "pay") != 0 && requestP->booking_info.cur_chosen_seat[selected_seat] == 1){ // requestP.booking_info.cur_chosen_seat[selected_seat] == 1
-                        //The client want to cancel the reserved seat
+                        //The client want to cancel the reserved seat 這個位子被選過，現在要cancel：要記得realease loc!!
                         requestP->booking_info.cur_chosen_seat[selected_seat] = 0;//1-based
+                        unloc(requestP[conn_fd].booking_info.shift_id, selected_seat);//release lock
+
                         cur_seat_stat(requestP, seat_str, requestP->booking_info.cur_chosen_seat);
 
                         char info_buf[MAX_MSG_LEN];  // Buffer to hold the formatted string
@@ -520,6 +522,7 @@ Retry_train_number:
                         snprintf(info_buf, sizeof(info_buf), "%s\nBooking info\n|- Shift ID: %d\n|- Chose seat(s): \n|- Paid: %s\n\n", no_seat_msg, requestP[conn_fd].booking_info.shift_id, paid_seat_str);
                         write(requestP[conn_fd].conn_fd, info_buf, strlen(info_buf));
                     } else if (strcmp(requestP[conn_fd].buf, "pay") == 0 && cur_seat_stat(requestP, seat_str, requestP->booking_info.cur_chosen_seat) > 0) {
+                        // cur_chosen_seat裡有東西，client要買車票
                         // for(int i = 1; i< (SEAT_NUM+1);i++){
                         //     printf("requestP->booking_info.cur_chosen_seat[%d]:%d\n", i, requestP->booking_info.cur_chosen_seat[i]);
                         // }
@@ -529,11 +532,12 @@ Retry_train_number:
                                 int modified_seat_n = (modify_booked_seat(requestP[conn_fd].booking_info.shift_id, i));
                                 requestP->booking_info.all_paid_seat[i] = 1;
                                 requestP->booking_info.cur_chosen_seat[i] = 0;
+                                unloc(requestP[conn_fd].booking_info.shift_id, i);//release lock selected seat i
                             } //IGNORE ERROR
                         }
-                        for(int i = 1; i< (SEAT_NUM+1);i++){
-                            printf("requestP->booking_info.all_paid_seat[%d]:%d\n", i, requestP->booking_info.cur_chosen_seat[i]);
-                        }
+                        // for(int i = 1; i< (SEAT_NUM+1);i++){
+                        //     printf("requestP->booking_info.all_paid_seat[%d]:%d\n", i, requestP->booking_info.cur_chosen_seat[i]);
+                        // }
 
                         cur_seat_stat(requestP, paid_seat_str, requestP->booking_info.all_paid_seat);
                         char info_buf[MAX_MSG_LEN];  // Buffer to hold the formatted string
