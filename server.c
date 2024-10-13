@@ -407,35 +407,6 @@ int main(int argc, char** argv) {
             write(requestP[conn_fd].conn_fd, invalid_op_msg, strlen(invalid_op_msg));
             break;
         }
-
-
-        // Error handling: Check if the input is within the valid range
-        // if (requestP[conn_fd].booking_info.shift_id >= TRAIN_ID_START && requestP[conn_fd].booking_info.shift_id <= TRAIN_ID_END) {
-        //     // Get the index for the train number (e.g., 902001 -> 0, 902005 -> 4)
-        //     //int train_index = requestP[conn_fd].booking_info.shift_id - TRAIN_ID_START;
-
-        //     // Buffer for seat availability message
-        //     char seat_availability_msg[MAX_MSG_LEN];
-
-        //     // Print the seat info from the file using the train's file descriptor
-        //     if (read_loc_read(train_number_to_fd(requestP[conn_fd].booking_info.shift_id), seat_availability_msg, sizeof(seat_availability_msg)) == 0) {
-        //         //這邊有將原本的print_train_info改成read_loc_read
-        //         // read_loc_read 做的事是讀檔，並且將檔案的內容讀進buffer(seat_availability_msg)中，然後後續透過write，將這個msg output到那個connection的client output上 (requestP[conn_fd].conn_fd)
-        //         // Send the seat availability to the client
-        //         write(requestP[conn_fd].conn_fd, seat_availability_msg, strlen(seat_availability_msg));
-        //     } else {
-        //         // If there was an error reading the seat data, notify the client
-        //         //const char* lock_msg = ">>> Locked.\n";
-        //         write(requestP[conn_fd].conn_fd, "Error retrieving seat data.\n", 30);
-        //     }
-
-        // } else {
-        //     // If the input is out of range, prompt the user again without terminating the loop
-        //     // const char* invalid_op_msg = ">>> Invalid operation.\n";
-        //     write(requestP[conn_fd].conn_fd, invalid_op_msg, strlen(invalid_op_msg));
-        //     break;
-        // }
-
     }
 
 #elif defined WRITE_SERVER
@@ -529,47 +500,6 @@ Retry_train_number:
                             } else if (if_write_loc_success == -1){
                                 printf("write_loc return -1: 沒有拿到loc, 有其他的error\n");
                             }
-                        
-                            // // Check the seat status
-                            // if (seat_availability == EMPTY) {
-                            //     //*********要加write loc ********/
-                            //     //reserving the seat now
-                            //     //如果有順利拿到write loc
-                            //     int if_write_loc_success = write_loc(train_number, selected_seat);
-                            //     if(if_write_loc_success == 1){
-                            //         requestP->booking_info.cur_chosen_seat[selected_seat] = 1;//1-based
-
-                            //         cur_seat_stat(requestP, seat_str, requestP->booking_info.cur_chosen_seat);
-                            //         char info_buf[MAX_MSG_LEN];  // Buffer to hold the formatted string
-                            //         snprintf(info_buf, sizeof(info_buf),"\nBooking info\n|- Shift ID: %d\n|- Chose seat(s): %s\n|- Paid: %s\n\n", requestP[conn_fd].booking_info.shift_id, seat_str, paid_seat_str);
-                            //         write(requestP[conn_fd].conn_fd, info_buf, strlen(info_buf));
-
-                            //     } else if (if_write_loc_success == 0){  //lock_msg
-                            //         cur_seat_stat(requestP, seat_str, requestP->booking_info.cur_chosen_seat);
-                            //         char info_buf[MAX_MSG_LEN];  // Buffer to hold the formatted string
-                            //         snprintf(info_buf, sizeof(info_buf),"%s\nBooking info\n|- Shift ID: %d\n|- Chose seat(s): %s\n|- Paid: %s\n\n", lock_msg, requestP[conn_fd].booking_info.shift_id, seat_str, paid_seat_str);
-                            //         write(requestP[conn_fd].conn_fd, info_buf, strlen(info_buf));
-                            //     } else if (if_write_loc_success == -1){
-                            //         printf("write_loc return -1: 沒有拿到loc, 有其他的error\n");
-                            //     }
-
-                            // } else if (seat_availability == PAID) {
-                            //     // Seat is already booked
-                            //     write(requestP[conn_fd].conn_fd, seat_booked_msg, strlen(seat_booked_msg));
-
-                            //     cur_seat_stat(requestP, seat_str, requestP->booking_info.cur_chosen_seat);//testcase 2-7 fail
-                            //     char info_buf[MAX_MSG_LEN];  // Buffer to hold the formatted string
-                            //     snprintf(info_buf, sizeof(info_buf),"\nBooking info\n|- Shift ID: %d\n|- Chose seat(s): %s\n|- Paid: %s\n\n", requestP[conn_fd].booking_info.shift_id, seat_str, paid_seat_str);
-                            //     write(requestP[conn_fd].conn_fd, info_buf, strlen(info_buf));
-                            // } else if (seat_availability == CHOSEN) {
-                            //     // Seat is reserved by someone else
-                            //     // 試圖拿write lock但是被refuse:有可能現在是在read lock 或 write lock
-                            //     write(requestP[conn_fd].conn_fd, lock_msg, strlen(lock_msg));
-
-                            //     char info_buf[MAX_MSG_LEN];  // Buffer to hold the formatted string
-                            //     snprintf(info_buf, sizeof(info_buf),"\nBooking info\n|- Shift ID: %d\n|- Chose seat(s): %s\n|- Paid: %s\n\n", requestP[conn_fd].booking_info.shift_id, seat_str, paid_seat_str);
-                            //     write(requestP[conn_fd].conn_fd, info_buf, strlen(info_buf));
-                            // }
                         } else {
                             // Invalid seat number
                             write(requestP[conn_fd].conn_fd, invalid_op_msg, strlen(invalid_op_msg));
